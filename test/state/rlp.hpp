@@ -5,6 +5,7 @@
 #pragma once
 
 #include <intx/intx.hpp>
+#include <qrvmc/hex.hpp>
 #include <cassert>
 #include <string>
 #include <string_view>
@@ -13,8 +14,8 @@
 
 namespace qrvmone::rlp
 {
-using bytes = std::basic_string<uint8_t>;
-using bytes_view = std::basic_string_view<uint8_t>;
+using qrvmc::bytes;
+using qrvmc::bytes_view;
 
 namespace internal
 {

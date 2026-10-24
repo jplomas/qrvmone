@@ -28,6 +28,11 @@ qrvmc_result execute(AdvancedExecutionState& state, const AdvancedCodeAnalysis& 
 qrvmc_result execute(qrvmc_vm* /*unused*/, const qrvmc_host_interface* host, qrvmc_host_context* ctx,
     qrvmc_revision rev, const qrvmc_message* msg, const uint8_t* code, size_t code_size) noexcept
 {
+    // Instruction and gas tables are indexed by revision. Reject one this VM was not built for,
+    // for example from a host built against other QRVMC headers, instead of reading past them.
+    if (static_cast<unsigned>(rev) > QRVMC_MAX_REVISION) [[unlikely]]
+        return qrvmc_make_result(QRVMC_REJECTED, 0, 0, nullptr, 0);
+
     AdvancedCodeAnalysis analysis;
     const bytes_view container = {code, code_size};
     analysis = analyze(rev, container);

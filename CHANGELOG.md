@@ -5,6 +5,21 @@ Documentation of all notable changes to the **qrvmone** project.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [Unreleased]
+
+### Fixed
+
+- `execute()` returns `QRVMC_REJECTED` for a revision above
+  `QRVMC_MAX_REVISION` instead of indexing the per-revision instruction and
+  gas tables past their end. A host built against QRVMC headers from before
+  Zond became revision `0` passes `1`, which previously read out of bounds
+  silently.
+- Byte strings use QRVMC's `qrvmc::bytes` and `qrvmc::bytes_view`, so with a
+  QRVMC that provides `byte_traits` the build no longer relies on
+  `std::char_traits<uint8_t>`, which libc++ 19 and later deprecate.
+- Test builds configure with CMake 4: Hunter's CLI11 and nlohmann_json
+  packages are built with `CMAKE_POLICY_VERSION_MINIMUM=3.5`.
+
 ## [0.11.0] — 2026-04-23
 
 ### Breaking changes
@@ -44,6 +59,7 @@ Release aligned to the QRVMC v2.0.0 ABI, which widens the VM word to
   not installed by the bundled qrvmc package. Ship tests stay off in
   release builds until that dependency is resolved.
 
+[Unreleased]: https://github.com/theQRL/qrvmone/commits/main
 [0.11.0]: https://github.com/adamtka42/qrvmone/compare/64-byte-word
 
 [Keep a Changelog]: https://keepachangelog.com
