@@ -5,6 +5,15 @@ Documentation of all notable changes to the **qrvmone** project.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [0.12.1] — 2026-10-25
+
+### Fixed
+
+- Configures with CMake 4 on a machine without a populated Hunter cache:
+  `cmake/cable/HunterGate.cmake` now generates its download project with
+  `cmake_minimum_required(VERSION 3.10)` instead of 3.2, as in
+  [cpp-pm/gate#18](https://github.com/cpp-pm/gate/pull/18).
+
 ## [0.12.0] — 2026-10-25
 
 ### Breaking changes
@@ -63,6 +72,7 @@ Release aligned to the QRVMC v2.0.0 ABI, which widens the VM word to
   not installed by the bundled qrvmc package. Ship tests stay off in
   release builds until that dependency is resolved.
 
+[0.12.1]: https://github.com/theQRL/qrvmone/releases/tag/v0.12.1
 [0.12.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.12.0
 [0.11.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.11.0
 
