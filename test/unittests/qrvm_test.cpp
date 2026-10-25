@@ -474,6 +474,15 @@ TEST_P(qrvm, invalid)
     EXPECT_EQ(result.gas_left, 0);
 }
 
+TEST_P(qrvm, revision_out_of_range)
+{
+    // A host built against older QRVMC headers passes Zond as 1, which is past this VM's tables.
+    rev = static_cast<qrvmc_revision>(QRVMC_MAX_REVISION + 1);
+    execute(100, "00");
+    EXPECT_EQ(result.status_code, QRVMC_REJECTED);
+    EXPECT_EQ(result.gas_left, 0);
+}
+
 TEST_P(qrvm, inner_stop)
 {
     const auto code = push(0) + OP_STOP + OP_POP;

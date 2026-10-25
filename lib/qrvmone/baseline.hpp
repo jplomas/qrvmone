@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include <qrvmc/hex.hpp>
 #include <qrvmc/utils.h>
 #include <qrvmc/qrvmc.h>
 #include <memory>
@@ -11,7 +12,7 @@
 
 namespace qrvmone
 {
-using bytes_view = std::basic_string_view<uint8_t>;
+using qrvmc::bytes_view;
 
 class ExecutionState;
 class VM;

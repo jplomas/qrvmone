@@ -21,8 +21,8 @@ class CodeAnalysis;
 
 using uint256 = intx::uint256;
 using uint512 = intx::uint<512>;
-using bytes = std::basic_string<uint8_t>;
-using bytes_view = std::basic_string_view<uint8_t>;
+using qrvmc::bytes;
+using qrvmc::bytes_view;
 
 
 /// Provides memory for QRVM stack.

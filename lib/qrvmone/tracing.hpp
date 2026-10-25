@@ -4,6 +4,7 @@
 #pragma once
 
 #include <intx/intx.hpp>
+#include <qrvmc/hex.hpp>
 #include <qrvmc/utils.h>
 #include <qrvmc/qrvmc.h>
 #include <memory>
@@ -12,7 +13,7 @@
 
 namespace qrvmone
 {
-using bytes_view = std::basic_string_view<uint8_t>;
+using qrvmc::bytes_view;
 
 class ExecutionState;
 
