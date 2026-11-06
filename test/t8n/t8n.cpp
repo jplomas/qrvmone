@@ -141,7 +141,7 @@ int main(int argc, const char* argv[])
                         j_receipt["cumulativeGasUsed"] = hex0x(cumulative_gas_used);
 
                         j_receipt["blockHash"] = hex0x(bytes64{});
-                        j_receipt["contractAddress"] = hex0x(address{});
+                        j_receipt["contractAddress"] = hexq(address{});
                         j_receipt["logsBloom"] = hex0x(receipt.logs_bloom_filter);
                         j_receipt["logs"] = json::json::array();  // FIXME: Add to_json<state:Log>
                         j_receipt["root"] = "";
@@ -166,20 +166,8 @@ int main(int argc, const char* argv[])
 
         std::ofstream{output_dir / output_result_file} << std::setw(2) << j_result;
 
-        // Print out current state to outAlloc file
-        json::json j_alloc;
-        for (const auto& [addr, acc] : state.get_accounts())
-        {
-            j_alloc[hex0x(addr)]["nonce"] = hex0x(acc.nonce);
-            for (const auto& [key, val] : acc.storage)
-                if (!is_zero(val.current))
-                    j_alloc[hex0x(addr)]["storage"][hex0x(key)] = hex0x(val.current);
-
-            j_alloc[hex0x(addr)]["code"] = hex0x(bytes_view(acc.code.data(), acc.code.size()));
-            j_alloc[hex0x(addr)]["balance"] = hex0x(acc.balance);
-        }
-
-        std::ofstream{output_dir / output_alloc_file} << std::setw(2) << j_alloc;
+        // Print out current state to outAlloc file, in the form --input.alloc reads back.
+        std::ofstream{output_dir / output_alloc_file} << std::setw(2) << export_state(state);
 
         if (!output_body_file.empty())
             std::ofstream{output_dir / output_body_file} << hex0x(rlp::encode(transactions));

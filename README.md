@@ -47,7 +47,8 @@ differences:
      applied once per block, after an extensive bytecode analysis.
 
    The `trace` and `histogram` options enable execution tracing and an opcode
-   histogram on either interpreter.
+   histogram on the baseline interpreter. The advanced interpreter does not
+   notify tracers.
 
 ## Usage
 
@@ -112,6 +113,15 @@ when [Hunter] downloads intx, ethash and the test dependencies.
 
    The library lands in `build/lib` and the tools in `build/bin`.
 
+   With a multi-configuration generator such as Visual Studio, name the
+   configuration on every build and test command. The binaries then land in a
+   configuration subdirectory:
+   ```bash
+   cmake --build build --config Release --parallel
+   build\bin\Release\qrvmone-unittests.exe
+   cd build && ctest -C Release
+   ```
+
 Useful CMake options:
 
 | Option | Default | Effect |
@@ -123,13 +133,16 @@ Useful CMake options:
 
 ### Testing
 
-Run the unit tests, or everything registered with CTest, from the build
-directory:
+Run the unit tests, or everything registered with CTest, from the repository
+root:
 
 ```bash
 build/bin/qrvmone-unittests
-ctest --test-dir build
+(cd build && ctest)
 ```
+
+With CMake 3.20 or newer, `ctest --test-dir build` runs CTest without changing
+directory.
 
 `qrvmc-vmtester` checks that the built module meets the QRVMC contract:
 

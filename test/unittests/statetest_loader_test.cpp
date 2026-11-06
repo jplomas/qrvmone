@@ -125,3 +125,50 @@ TEST(statetest_loader, load_minimal_test)
     EXPECT_EQ(st.cases.size(), 0);
     EXPECT_EQ(st.input_labels.size(), 0);
 }
+
+
+TEST(statetest_loader, alloc_round_trip)
+{
+    using namespace qrvmc::literals;
+    using namespace intx;
+
+    // An exported allocation must load back unchanged: addresses as "Q" + 128 hex
+    // characters, nonce and balance as 0x hex, code as 0x hex, non-zero storage slots.
+    state::State original;
+    auto& acc1 = original.insert("Q01"_address,
+        {.nonce = 7, .balance = 0x0de0b6b3a7640000_u256, .code = qrvmc::bytes{0x60, 0x01, 0x00}});
+    acc1.storage[0x01_bytes64] = {.current = 0xfe_bytes64, .original = 0xfe_bytes64};
+    acc1.storage[0x02_bytes64] = {.current = {}, .original = 0xfd_bytes64};  // zero: left out
+    original.insert(
+        "Q00000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"_address,
+        {.nonce = 0, .balance = 0, .code = {}});
+
+    const auto j = test::export_state(original);
+    ASSERT_EQ(j.size(), 2);
+    for (const auto& [key, j_acc] : j.items())
+    {
+        EXPECT_EQ(key.size(), 129);
+        EXPECT_EQ(key[0], 'Q');
+        EXPECT_TRUE(j_acc.contains("nonce") && j_acc.contains("balance") && j_acc.contains("code"));
+    }
+
+    auto loaded = test::from_json<state::State>(j);
+    ASSERT_EQ(loaded.get_accounts().size(), 2);
+
+    const auto* l1 = loaded.find("Q01"_address);
+    ASSERT_NE(l1, nullptr);
+    EXPECT_EQ(l1->nonce, 7);
+    EXPECT_EQ(l1->balance, 0x0de0b6b3a7640000_u256);
+    EXPECT_EQ(l1->code, (qrvmc::bytes{0x60, 0x01, 0x00}));
+    ASSERT_EQ(l1->storage.size(), 1);
+    EXPECT_EQ(l1->storage.at(0x01_bytes64).current, 0xfe_bytes64);
+    EXPECT_EQ(l1->storage.at(0x01_bytes64).original, 0xfe_bytes64);
+
+    const auto* l2 = loaded.find(
+        "Q00000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"_address);
+    ASSERT_NE(l2, nullptr);
+    EXPECT_EQ(l2->nonce, 0);
+    EXPECT_EQ(l2->balance, 0);
+    EXPECT_TRUE(l2->code.empty());
+    EXPECT_TRUE(l2->storage.empty());
+}

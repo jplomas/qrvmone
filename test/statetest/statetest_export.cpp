@@ -1,0 +1,25 @@
+// qrvmone: Fast Quantum Resistant Virtual Machine implementation
+// SPDX-License-Identifier: Apache-2.0
+
+#include "statetest.hpp"
+
+namespace qrvmone::test
+{
+json::json export_state(const state::State& state)
+{
+    auto j = json::json::object();
+    for (const auto& [addr, acc] : state.get_accounts())
+    {
+        auto& j_acc = j[hexq(addr)];
+        j_acc["nonce"] = hex0x(acc.nonce);
+        j_acc["balance"] = hex0x(acc.balance);
+        j_acc["code"] = hex0x(bytes_view{acc.code.data(), acc.code.size()});
+        for (const auto& [key, value] : acc.storage)
+        {
+            if (!is_zero(value.current))
+                j_acc["storage"][hex0x(key)] = hex0x(value.current);
+        }
+    }
+    return j;
+}
+}  // namespace qrvmone::test

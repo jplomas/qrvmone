@@ -68,6 +68,11 @@ and this project adheres to [Semantic Versioning].
   and the benchmark fixtures under `test/qrvm-benchmarks` were rewritten with
   full-length addresses, so go-qrl's `qrvm statetest` loads the integration
   fixture unchanged and passes it.
+- `qrvmone-t8n` writes allocation addresses, and a receipt's
+  `contractAddress`, as `Q` followed by 128 hex characters instead of `0x`
+  hex, so its `--output.alloc` can be fed back as `--input.alloc`. The
+  export lives in `export_state()` in the state test utilities and has a
+  round-trip test.
 
 ## [0.12.1] — 2026-10-25
 

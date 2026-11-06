@@ -13,6 +13,7 @@ target_include_directories(qrvmone-statetestutils PRIVATE ${qrvmone_private_incl
 target_sources(
     qrvmone-statetestutils PRIVATE
     statetest.hpp
+    statetest_export.cpp
     statetest_loader.cpp
     statetest_logs_hash.cpp
 )
