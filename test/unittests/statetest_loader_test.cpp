@@ -139,12 +139,21 @@ TEST(statetest_loader, alloc_round_trip)
         {.nonce = 7, .balance = 0x0de0b6b3a7640000_u256, .code = qrvmc::bytes{0x60, 0x01, 0x00}});
     acc1.storage[0x01_bytes64] = {.current = 0xfe_bytes64, .original = 0xfe_bytes64};
     acc1.storage[0x02_bytes64] = {.current = {}, .original = 0xfd_bytes64};  // zero: left out
-    original.insert(
-        "Q00000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"_address,
-        {.nonce = 0, .balance = 0, .code = {}});
+    // A key and a value using all 64 bytes, with non-zero high bytes, must survive unchanged.
+    bytes64 wide_key{};
+    wide_key.bytes[0] = 0x80;
+    wide_key.bytes[63] = 0x0f;
+    bytes64 wide_value{};
+    wide_value.bytes[0] = 0x01;
+    wide_value.bytes[63] = 0xff;
+    acc1.storage[wide_key] = {.current = wide_value, .original = wide_value};
+    constexpr auto addr2 =
+        "Q00000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"_address;
+    original.insert(addr2, {.nonce = 0, .balance = 0, .code = {}});
 
     const auto j = test::export_state(original);
     ASSERT_EQ(j.size(), 2);
+    EXPECT_EQ(j.at(test::hexq(addr2)).at("code"), "0x");  // empty code exports as "0x"
     for (const auto& [key, j_acc] : j.items())
     {
         EXPECT_EQ(key.size(), 129);
@@ -160,12 +169,13 @@ TEST(statetest_loader, alloc_round_trip)
     EXPECT_EQ(l1->nonce, 7);
     EXPECT_EQ(l1->balance, 0x0de0b6b3a7640000_u256);
     EXPECT_EQ(l1->code, (qrvmc::bytes{0x60, 0x01, 0x00}));
-    ASSERT_EQ(l1->storage.size(), 1);
+    ASSERT_EQ(l1->storage.size(), 2);
     EXPECT_EQ(l1->storage.at(0x01_bytes64).current, 0xfe_bytes64);
     EXPECT_EQ(l1->storage.at(0x01_bytes64).original, 0xfe_bytes64);
+    EXPECT_EQ(l1->storage.at(wide_key).current, wide_value);
+    EXPECT_EQ(l1->storage.at(wide_key).original, wide_value);
 
-    const auto* l2 = loaded.find(
-        "Q00000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"_address);
+    const auto* l2 = loaded.find(addr2);
     ASSERT_NE(l2, nullptr);
     EXPECT_EQ(l2->nonce, 0);
     EXPECT_EQ(l2->balance, 0);

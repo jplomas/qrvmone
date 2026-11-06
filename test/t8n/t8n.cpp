@@ -19,6 +19,8 @@ using namespace qrvmone;
 using namespace qrvmone::test;
 using namespace std::literals;
 
+/// Runs the state transition described by the --input.* files and writes the result,
+/// the post-state allocation and optionally the RLP body to --output.basedir.
 int main(int argc, const char* argv[])
 {
     qrvmc_revision rev = {};

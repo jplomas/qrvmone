@@ -97,12 +97,11 @@ size_t Host::copy_code(const address& addr, size_t code_offset, uint8_t* buffer_
     return num_bytes;
 }
 
-// ADR-004 (64-byte Zond address derivation): the new account address is
-// Keccak-512("QRL-ADDR-v1" || data). For
-// CREATE, data is rlp(sender, nonce); for CREATE2, data is
-// 0xff || sender || salt || keccak256(init_code). The mock host mirrors
-// the on-chain go-qrl derivation so cross-VM state tests hash to the same
-// addresses under the widened layout.
+/// Derives the address of a new account as go-qrl does (ADR-004, 64-byte addresses):
+/// Keccak-512("QRL-ADDR-v1" || data), keeping the full 64-byte digest. For CREATE, data is
+/// rlp(sender, nonce); for CREATE2, data is 0xff || sender || salt || the 32-byte keccak256
+/// digest of the init code. The host mirrors go-qrl's crypto.CreateAddress and
+/// CreateAddress2 so state tests derive the same addresses.
 address compute_new_account_address(const address& sender, uint64_t sender_nonce,
     const std::optional<bytes64>& salt, bytes_view init_code) noexcept
 {

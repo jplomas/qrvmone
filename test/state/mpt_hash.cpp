@@ -18,6 +18,7 @@ bytes_view digest(const hash256& h) noexcept
     return {h.bytes + 32, 32};
 }
 
+/// Computes the storage trie root of one account.
 hash256 mpt_hash(const std::unordered_map<hash256, StorageValue>& storage)
 {
     // go-qrl keys the storage trie by keccak256 of the 32-byte storage key
@@ -34,6 +35,7 @@ hash256 mpt_hash(const std::unordered_map<hash256, StorageValue>& storage)
 }
 }  // namespace
 
+/// Computes the state trie root of the given accounts.
 hash256 mpt_hash(const std::unordered_map<address, Account>& accounts)
 {
     MPT trie;
@@ -52,6 +54,8 @@ hash256 mpt_hash(const std::unordered_map<address, Account>& accounts)
     return trie.hash();
 }
 
+/// Computes the transactions trie root: keys are the RLP of the index, values the
+/// typed transaction RLP.
 hash256 mpt_hash(std::span<const Transaction> transactions)
 {
     MPT trie;
@@ -60,6 +64,8 @@ hash256 mpt_hash(std::span<const Transaction> transactions)
     return trie.hash();
 }
 
+/// Computes the receipts trie root: keys are the RLP of the index, values the typed
+/// receipt RLP.
 hash256 mpt_hash(std::span<const TransactionReceipt> receipts)
 {
     MPT trie;

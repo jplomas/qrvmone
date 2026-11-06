@@ -5,6 +5,7 @@
 
 namespace qrvmone::test
 {
+/// See statetest.hpp: the JSON allocation form that from_json<state::State>() reads.
 json::json export_state(const state::State& state)
 {
     auto j = json::json::object();

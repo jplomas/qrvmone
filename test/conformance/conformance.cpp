@@ -37,6 +37,7 @@ qrvmc::address address_from_bytes(std::string_view s) noexcept
     return addr;
 }
 
+/// Maps a QRVMC status code to go-qrl's portable conformance.ErrorClass name.
 const char* error_class(qrvmc_status_code status) noexcept
 {
     switch (status)
@@ -63,12 +64,14 @@ const char* error_class(qrvmc_status_code status) noexcept
     }
 }
 
+/// Decodes a hex string into @p out; returns false on malformed input.
 bool decode_hex(const std::string& hex, qrvmc::bytes& out)
 {
     out.clear();
     return qrvmc::from_hex(hex.begin(), hex.end(), std::back_inserter(out));
 }
 
+/// Splits a line into its tab separated fields, keeping a trailing empty field.
 std::vector<std::string> split_tabs(const std::string& line)
 {
     std::vector<std::string> fields;
@@ -82,6 +85,8 @@ std::vector<std::string> split_tabs(const std::string& line)
 }
 }  // namespace
 
+/// Reads vectors from standard input and prints one result line per vector; exits
+/// with status 2 on a malformed line.
 int main()
 {
     qrvmc::VM vm{qrvmc_create_qrvmone()};

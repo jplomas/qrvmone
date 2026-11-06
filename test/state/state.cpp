@@ -193,6 +193,7 @@ std::variant<TransactionReceipt, std::error_code> transition(
     return receipt;
 }
 
+/// RLP of a log entry: [address, topics, data].
 [[nodiscard]] bytes rlp_encode(const Log& log)
 {
     return rlp::encode_tuple(log.addr, log.topics, log.data);
@@ -219,6 +220,7 @@ bytes rlp_encode_access_list(const AccessList& access_list)
 }
 }  // namespace
 
+/// Typed RLP of a transaction, byte for byte as go-qrl's DynamicFeeTx wire encoding.
 [[nodiscard]] bytes rlp_encode(const Transaction& tx)
 {
     // Matches go-qrl core/types/tx_dynamic_fee.go DynamicFeeTx, encoded in struct order:
@@ -239,6 +241,7 @@ bytes rlp_encode_access_list(const AccessList& access_list)
                rlp::encode(tx.public_key));
 }
 
+/// Typed RLP of a receipt: [status, cumulative gas used, logs bloom, logs].
 [[nodiscard]] bytes rlp_encode(const TransactionReceipt& receipt)
 {
     const auto prefix = receipt.kind == Transaction::Kind::eip1559 ? bytes{0x02} : bytes{};

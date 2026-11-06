@@ -69,6 +69,7 @@ bytes from_json<bytes>(const json::json& j)
     return from_hex(j.get<std::string>()).value();
 }
 
+/// Parses an address written as "Q" followed by exactly 128 hex characters.
 template <>
 address from_json<address>(const json::json& j)
 {
@@ -236,6 +237,8 @@ static void from_json_tx_common(const json::json& j, state::Transaction& o)
     o.max_priority_gas_price = from_json<intx::uint256>(j.at("maxPriorityFeePerGas"));
 }
 
+/// Parses a single transaction in the t8n input form, including go-qrl's descriptor
+/// and extraParams fields when present.
 template <>
 state::Transaction from_json<state::Transaction>(const json::json& j)
 {

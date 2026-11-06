@@ -118,7 +118,7 @@ when [Hunter] downloads intx, ethash and the test dependencies.
    configuration subdirectory:
    ```bash
    cmake --build build --config Release --parallel
-   build\bin\Release\qrvmone-unittests.exe
+   build/bin/Release/qrvmone-unittests.exe
    cd build && ctest -C Release
    ```
 

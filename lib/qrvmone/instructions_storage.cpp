@@ -64,6 +64,8 @@ constexpr auto sstore_costs = []() noexcept {
 }();
 }  // namespace
 
+/// SLOAD: loads the storage value at the low 256 bits of the key on top of the stack,
+/// charging the EIP-2929 cold or warm access cost for that slot.
 Result sload(StackTop stack, int64_t gas_left, ExecutionState& state) noexcept
 {
     auto& x = stack.top();
@@ -84,6 +86,8 @@ Result sload(StackTop stack, int64_t gas_left, ExecutionState& state) noexcept
     return {QRVMC_SUCCESS, gas_left};
 }
 
+/// SSTORE: stores the value at the low 256 bits of the key, with the EIP-2200 and
+/// EIP-2929 gas and refund rules for the slot's original, current and new values.
 Result sstore(StackTop stack, int64_t gas_left, ExecutionState& state) noexcept
 {
     if (state.in_static_mode())
