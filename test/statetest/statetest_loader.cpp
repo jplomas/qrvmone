@@ -5,6 +5,8 @@
 #include "../utils/stdx/utility.hpp"
 #include "statetest.hpp"
 #include <nlohmann/json.hpp>
+#include <algorithm>
+#include <string>
 
 namespace qrvmone::test
 {
@@ -70,7 +72,18 @@ bytes from_json<bytes>(const json::json& j)
 template <>
 address from_json<address>(const json::json& j)
 {
-    return qrvmc::from_prefixed_hex<address>(j.get<std::string>(), "Q").value();
+    // go-qrl parses addresses with hexutil.UnmarshalFixedTextQ (common.Address.UnmarshalText):
+    // "Q" followed by exactly 128 hex characters. Require the same here, so a fixture that
+    // loads in one implementation loads in the other, instead of left-padding short forms.
+    const auto s = j.get<std::string>();
+    constexpr auto hex_length = 2 * sizeof(address{}.bytes);
+    if (s.size() != 1 + hex_length || s[0] != 'Q')
+        throw std::invalid_argument(
+            "address must be Q followed by " + std::to_string(hex_length) + " hex characters: " + s);
+    const auto addr = qrvmc::from_prefixed_hex<address>(s, "Q");
+    if (!addr.has_value())
+        throw std::invalid_argument("invalid address: " + s);
+    return *addr;
 }
 
 template <>
@@ -246,6 +259,17 @@ state::Transaction from_json<state::Transaction>(const json::json& j)
     }
 
     o.nonce = from_json<uint64_t>(j.at("nonce"));
+    if (const auto it = j.find("descriptor"); it != j.end())
+    {
+        // go-qrl's DynamicFeeTx.Descriptor is a fixed 3-byte array; its JSON form may be
+        // empty ("0x"), which leaves the array zero.
+        const auto descriptor = from_json<bytes>(*it);
+        if (!descriptor.empty() && descriptor.size() != o.descriptor.size())
+            throw std::invalid_argument("descriptor must be empty or 3 bytes");
+        std::copy(descriptor.begin(), descriptor.end(), o.descriptor.begin());
+    }
+    if (const auto it = j.find("extraParams"); it != j.end())
+        o.extra_params = from_json<bytes>(*it);
     o.public_key = from_json<bytes>(j.at("publicKey"));
     o.signature = from_json<bytes>(j.at("signature"));
 

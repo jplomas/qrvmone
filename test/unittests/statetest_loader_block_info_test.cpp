@@ -10,7 +10,7 @@ using namespace qrvmone;
 TEST(statetest_loader, block_info)
 {
     constexpr std::string_view input = R"({
-            "currentCoinbase": "Q000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111",
+            "currentCoinbase": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111",
             "currentGasLimit": "0x0",
             "currentNumber": "0",
             "currentTimestamp": "0",
@@ -32,7 +32,7 @@ TEST(statetest_loader, block_info)
 TEST(statetest_loader, block_info_hex)
 {
     constexpr std::string_view input = R"({
-        "currentCoinbase": "Q000000000000000000000000000000000000000000000000000000002adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
+        "currentCoinbase": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
         "currentGasLimit": "0x16345785D8A0000",
         "currentNumber": "1",
         "currentTimestamp": "0x3E8",
@@ -59,7 +59,7 @@ TEST(statetest_loader, block_info_hex)
 TEST(statetest_loader, block_info_dec)
 {
     constexpr std::string_view input = R"({
-        "currentCoinbase": "Q000000000000000000000000000000000000000000000000000000002adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
+        "currentCoinbase": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000002adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
         "currentGasLimit": "100000000000000000",
         "currentNumber": "1",
         "currentTimestamp": "1000",
@@ -86,7 +86,7 @@ TEST(statetest_loader, block_info_dec)
 TEST(statetest_loader, block_info_0_random)
 {
     constexpr std::string_view input = R"({
-            "currentCoinbase": "Q000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111",
+            "currentCoinbase": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111",
             "currentGasLimit": "0x0",
             "currentNumber": "0",
             "currentTimestamp": "0",
@@ -107,7 +107,7 @@ TEST(statetest_loader, block_info_0_random)
 TEST(statetest_loader, block_info_withdrawals)
 {
     constexpr std::string_view input = R"({
-            "currentCoinbase": "Q000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111",
+            "currentCoinbase": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111111111111111111111111111111111111",
             "currentGasLimit": "0x0",
             "currentNumber": "0",
             "currentTimestamp": "0",
@@ -117,13 +117,13 @@ TEST(statetest_loader, block_info_withdrawals)
                 {
                     "index": "0x0",
                     "validatorIndex": "0x0",
-                    "address": "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100",
+                    "address": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100",
                     "amount": "0x800000000"
                 },
                 {
                     "index": "0x1",
                     "validatorIndex": "0x1",
-                    "address": "Q000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200",
+                    "address": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200",
                     "amount": "0xffffffffffffffff"
                 }
             ]

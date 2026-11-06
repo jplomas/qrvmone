@@ -117,13 +117,17 @@ address compute_new_account_address(const address& sender, uint64_t sender_nonce
     }
     else  // CREATE2
     {
+        // go-qrl (core/vm/qrvm.go, crypto.CreateAddress2) hashes
+        // 0xff || sender (64 bytes) || salt (64 bytes) || keccak256(init_code) (32 bytes).
+        // keccak256() returns the digest in the low 32 bytes of a 64-byte container,
+        // so embed only that half.
         const auto init_code_hash = keccak256(init_code);
-        data.reserve(1 + sizeof(sender) + sizeof(*salt) + sizeof(init_code_hash));
+        const bytes_view init_code_digest{init_code_hash.bytes + 32, 32};
+        data.reserve(1 + sizeof(sender) + sizeof(*salt) + init_code_digest.size());
         data.push_back(uint8_t{0xff});
         data.insert(data.end(), sender.bytes, sender.bytes + sizeof(sender));
         data.insert(data.end(), salt->bytes, salt->bytes + sizeof(salt->bytes));
-        data.insert(data.end(), init_code_hash.bytes,
-            init_code_hash.bytes + sizeof(init_code_hash));
+        data.insert(data.end(), init_code_digest.begin(), init_code_digest.end());
     }
 
     bytes hashed_input;

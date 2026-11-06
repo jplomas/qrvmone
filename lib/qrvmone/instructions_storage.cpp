@@ -67,7 +67,7 @@ constexpr auto sstore_costs = []() noexcept {
 Result sload(StackTop stack, int64_t gas_left, ExecutionState& state) noexcept
 {
     auto& x = stack.top();
-    const auto key = store_uint(x);
+    const auto key = store_storage_key(x);
 
     if (state.host.access_storage(state.msg->recipient, key) == QRVMC_ACCESS_COLD)
     {
@@ -92,7 +92,7 @@ Result sstore(StackTop stack, int64_t gas_left, ExecutionState& state) noexcept
     if (gas_left <= 2300)
         return {QRVMC_OUT_OF_GAS, gas_left};
 
-    const auto key = store_uint(stack.pop());
+    const auto key = store_storage_key(stack.pop());
     const auto value = store_uint(stack.pop());
 
     const auto gas_cost_cold =

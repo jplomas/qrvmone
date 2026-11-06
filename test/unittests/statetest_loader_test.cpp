@@ -77,7 +77,7 @@ TEST(statetest_loader, load_minimal_test)
             "_info": {},
             "pre": {},
             "transaction": {
-                "sender": "",
+                "sender": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
                 "to": "",
                 "data": null,
                 "gasLimit": "0",
@@ -90,7 +90,7 @@ TEST(statetest_loader, load_minimal_test)
                 "currentNumber": "0",
                 "currentTimestamp": "0",
                 "currentGasLimit": "0",
-                "currentCoinbase": "",
+                "currentCoinbase": "Q00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
                 "currentRandom": ""
             }
         }

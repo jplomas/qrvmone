@@ -15,6 +15,7 @@ find_package(benchmark CONFIG REQUIRED)
 
 add_subdirectory(utils)
 add_subdirectory(bench)
+add_subdirectory(conformance)
 add_subdirectory(integration)
 add_subdirectory(internal_benchmarks)
 add_subdirectory(state)
@@ -22,7 +23,7 @@ add_subdirectory(statetest)
 add_subdirectory(t8n)
 add_subdirectory(unittests)
 
-set(targets qrvmone-bench qrvmone-bench-internal qrvmone-state qrvmone-statetest qrvmone-t8n qrvmone-unittests)
+set(targets qrvmone-bench qrvmone-bench-internal qrvmone-conformance qrvmone-state qrvmone-statetest qrvmone-t8n qrvmone-unittests)
 
 if(QRVMONE_FUZZING)
     add_subdirectory(fuzzer)

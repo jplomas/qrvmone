@@ -7,6 +7,7 @@
 #include "account.hpp"
 #include "bloom_filter.hpp"
 #include "hash_utils.hpp"
+#include <array>
 #include <cassert>
 #include <optional>
 #include <variant>
@@ -109,6 +110,10 @@ struct Transaction
     AccessList access_list;
     uint64_t chain_id = 0;
     uint64_t nonce = 0;
+    /// Signature scheme descriptor, always 3 bytes (go-qrl DynamicFeeTx.Descriptor).
+    std::array<uint8_t, 3> descriptor{};
+    /// Scheme parameters (go-qrl DynamicFeeTx.ExtraParams).
+    bytes extra_params;
     bytes public_key;
     bytes signature;
 };
