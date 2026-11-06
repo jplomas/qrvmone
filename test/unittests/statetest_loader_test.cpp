@@ -139,9 +139,10 @@ TEST(statetest_loader, alloc_round_trip)
         {.nonce = 7, .balance = 0x0de0b6b3a7640000_u256, .code = qrvmc::bytes{0x60, 0x01, 0x00}});
     acc1.storage[0x01_bytes64] = {.current = 0xfe_bytes64, .original = 0xfe_bytes64};
     acc1.storage[0x02_bytes64] = {.current = {}, .original = 0xfd_bytes64};  // zero: left out
-    // A key and a value using all 64 bytes, with non-zero high bytes, must survive unchanged.
+    // A 32-byte key with its top bit set and a value using all 64 bytes, with non-zero high
+    // bytes, must survive unchanged. Storage keys live in the low half of the 64-byte word.
     bytes64 wide_key{};
-    wide_key.bytes[0] = 0x80;
+    wide_key.bytes[32] = 0x80;
     wide_key.bytes[63] = 0x0f;
     bytes64 wide_value{};
     wide_value.bytes[0] = 0x01;
@@ -154,6 +155,12 @@ TEST(statetest_loader, alloc_round_trip)
     const auto j = test::export_state(original);
     ASSERT_EQ(j.size(), 2);
     EXPECT_EQ(j.at(test::hexq(addr2)).at("code"), "0x");  // empty code exports as "0x"
+    // Storage keys export as 32-byte hex, the form go-qrl writes; values keep all 64 bytes.
+    const auto& j_storage = j.at(test::hexq("Q01"_address)).at("storage");
+    EXPECT_EQ(j_storage.size(), 2);
+    const auto wide_key_hex = "0x80" + std::string(60, '0') + "0f";
+    ASSERT_TRUE(j_storage.contains(wide_key_hex));
+    EXPECT_EQ(j_storage.at(wide_key_hex), "0x01" + std::string(124, '0') + "ff");
     for (const auto& [key, j_acc] : j.items())
     {
         EXPECT_EQ(key.size(), 129);
@@ -181,4 +188,32 @@ TEST(statetest_loader, alloc_round_trip)
     EXPECT_EQ(l2->balance, 0);
     EXPECT_TRUE(l2->code.empty());
     EXPECT_TRUE(l2->storage.empty());
+}
+
+TEST(statetest_loader, alloc_storage_key_too_long)
+{
+    // go-qrl's storageJSON takes at most 64 hex characters for a storage key; a 65th
+    // would be a key the VM, which addresses storage by the low 256 bits, can never read.
+    const std::string input = std::string(R"({
+        "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ac01": {
+            "nonce": "0x0", "balance": "0x0", "code": "0x",
+            "storage": {")") + "0x1" + std::string(64, '0') + R"(": "0x01"}
+        }
+    })";
+    EXPECT_THAT([&] { test::from_json<state::State>(json::json::parse(input)); },
+        ThrowsMessage<std::invalid_argument>(HasSubstr("too many hex characters in storage key")));
+
+    // Exactly 64 hex characters, with or without the 0x prefix, load into the low 32 bytes.
+    const std::string ok = std::string(R"({
+        "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ac01": {
+            "nonce": "0x0", "balance": "0x0", "code": "0x",
+            "storage": {"0x)") + std::string(62, '0') + R"(fe": "0x01", ")" + std::string(63, '0') + R"(1": "0x02"}
+        }
+    })";
+    const auto st = test::from_json<state::State>(json::json::parse(ok));
+    const auto& storage = st.get_accounts().begin()->second.storage;
+    ASSERT_EQ(storage.size(), 2);
+    using namespace qrvmc::literals;
+    EXPECT_EQ(storage.at(0xfe_bytes64).current, 0x01_bytes64);
+    EXPECT_EQ(storage.at(0x01_bytes64).current, 0x02_bytes64);
 }

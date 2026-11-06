@@ -17,8 +17,10 @@ json::json export_state(const state::State& state)
         j_acc["code"] = hex0x(bytes_view{acc.code.data(), acc.code.size()});
         for (const auto& [key, value] : acc.storage)
         {
+            // Storage keys are 32 bytes held in the low half of the 64-byte word; write them
+            // as go-qrl's storageJSON does, so go-qrl reads this allocation too.
             if (!is_zero(value.current))
-                j_acc["storage"][hex0x(key)] = hex0x(value.current);
+                j_acc["storage"][hex0x(bytes_view{key.bytes + 32, 32})] = hex0x(value.current);
         }
     }
     return j;
