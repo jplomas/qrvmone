@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning].
   compare both runtimes vector by vector. Built with `QRVMONE_TESTING=ON`.
   From [cyyber/qrvmone#9](https://github.com/cyyber/qrvmone/pull/9).
 
+### Changed
+
+- `README.md` rewritten for qrvmone and go-qrl. It drops the gzond plugin
+  instructions (go-qrl runs its own VM and has no QRVMC loader), the Docker Hub
+  image that was never published, the `qrvm-test` tool that does not exist
+  (the QRVMC compliance tool is `qrvmc-vmtester`), the CI and coverage badges
+  of the upstream project and the broken link references. It describes the
+  QRVM's differences from the EVM, the tools built with `QRVMONE_TESTING=ON`,
+  how hyperion and go-qrl consume qrvmone, and the go-qrl conformance check.
+
 ### Fixed
 
 - `SLOAD` and `SSTORE` key contract storage by the low 256 bits of the
