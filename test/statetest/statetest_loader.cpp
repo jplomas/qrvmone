@@ -13,6 +13,7 @@ namespace qrvmone::test
 namespace json = nlohmann;
 using qrvmc::from_hex;
 
+/// Parses a hex string into a uint8_t; values above 0xff are an error.
 template <>
 uint8_t from_json<uint8_t>(const json::json& j)
 {
@@ -23,6 +24,7 @@ uint8_t from_json<uint8_t>(const json::json& j)
     return static_cast<uint8_t>(ret);
 }
 
+/// Parses a JSON integer, or a string holding a decimal, octal or 0x hex integer.
 template <typename T>
 static std::optional<T> integer_from_json(const json::json& j)
 {
@@ -45,6 +47,7 @@ static std::optional<T> integer_from_json(const json::json& j)
     return v;
 }
 
+/// Parses a signed 64-bit integer from a JSON number or integer string.
 template <>
 int64_t from_json<int64_t>(const json::json& j)
 {
@@ -54,6 +57,7 @@ int64_t from_json<int64_t>(const json::json& j)
     return *v;
 }
 
+/// Parses an unsigned 64-bit integer from a JSON number or integer string.
 template <>
 uint64_t from_json<uint64_t>(const json::json& j)
 {
@@ -63,6 +67,7 @@ uint64_t from_json<uint64_t>(const json::json& j)
     return *v;
 }
 
+/// Parses a hex string, with or without 0x, into bytes.
 template <>
 bytes from_json<bytes>(const json::json& j)
 {
@@ -87,6 +92,8 @@ address from_json<address>(const json::json& j)
     return *addr;
 }
 
+/// Parses a hex string of up to 64 bytes into a hash256, left-padded; "0" and "0x0" are
+/// accepted for the zero hash as exec-spec-tests write them.
 template <>
 hash256 from_json<hash256>(const json::json& j)
 {
@@ -99,31 +106,45 @@ hash256 from_json<hash256>(const json::json& j)
 }
 
 /// Parses an allocation storage key as go-qrl's storageJSON (core/genesis.go) does: an
-/// optional 0x prefix and at most 64 hex characters, left-padded into 32 bytes. The key is
-/// returned in the low half of a 64-byte word, the identity SLOAD, SSTORE and the state
-/// trie use, so no allocation can hold a slot the VM cannot address.
+/// optional lowercase 0x prefix and at most 64 hex characters, an even number of them,
+/// left-padded into 32 bytes. The key is returned in the low half of a 64-byte word, the
+/// identity SLOAD, SSTORE and the state trie use, so no allocation can hold a slot the VM
+/// cannot address.
 static bytes64 storage_key_from_json(const json::json& j)
 {
     const auto s = j.get<std::string>();
+    // storageJSON trims one lowercase 0x prefix and limits what is left to 64 characters.
     auto hex = std::string_view{s};
-    if (hex.starts_with("0x") || hex.starts_with("0X"))
+    if (hex.starts_with("0x"))
         hex.remove_prefix(2);
     if (hex.size() > 64)
         throw std::invalid_argument("too many hex characters in storage key: " + s);
-    return from_json<hash256>(j);
+    // Decode the original text, not the trimmed one: the QRVMC decoder strips the same single
+    // prefix and rejects a second one, which the trimmed text would have it strip again.
+    const auto key = qrvmc::from_hex<hash256>(s);
+    if (!key.has_value())
+        throw std::invalid_argument("invalid hex storage key: " + s);
+    return *key;
 }
 
-/// Parses an access-list storage key as go-qrl's common.Hash does: 0x followed by exactly
-/// 64 hex characters.
+/// Parses an access-list storage key as go-qrl's common.Hash does: 0x or 0X followed by
+/// exactly 64 hex characters. The prefix is normalised to 0x before decoding, which is the
+/// only form the QRVMC decoder strips.
 static bytes64 access_list_storage_key_from_json(const json::json& j)
 {
-    const auto s = j.get<std::string>();
+    auto s = j.get<std::string>();
     if (s.size() != 66 || !(s.starts_with("0x") || s.starts_with("0X")))
         throw std::invalid_argument(
             "access list storage key must be 0x followed by 64 hex characters: " + s);
-    return from_json<hash256>(j);
+    s[1] = 'x';
+    const auto key = qrvmc::from_hex<hash256>(s);
+    if (!key.has_value())
+        throw std::invalid_argument("invalid hex in access list storage key: " + s);
+    return *key;
 }
 
+/// Parses a decimal or 0x hex string into a uint256; the exec-spec-tests "0x:bigint" marker
+/// reads as the maximum value.
 template <>
 intx::uint256 from_json<intx::uint256>(const json::json& j)
 {
@@ -133,6 +154,7 @@ intx::uint256 from_json<intx::uint256>(const json::json& j)
     return intx::from_string<intx::uint256>(s);
 }
 
+/// Parses an EIP-2930 access list: entries of an address and its storage keys.
 template <>
 state::AccessList from_json<state::AccessList>(const json::json& j)
 {
@@ -147,7 +169,8 @@ state::AccessList from_json<state::AccessList>(const json::json& j)
     return o;
 }
 
-// Based on calculateEIP1559BaseFee from ethereum/retesteth
+/// Computes the EIP-1559 base fee of the current block from the parent block's gas used,
+/// gas limit and base fee. Based on calculateEIP1559BaseFee from ethereum/retesteth.
 inline uint64_t calculate_current_base_fee_eip1559(
     uint64_t parent_gas_used, uint64_t parent_gas_limit, uint64_t parent_base_fee)
 {
@@ -186,6 +209,8 @@ inline uint64_t calculate_current_base_fee_eip1559(
     return base_fee;
 }
 
+/// Parses the block environment ("env"): number, timestamp, gas limit, coinbase, prevrandao,
+/// base fee (given, or derived from the parent block) and withdrawals.
 template <>
 state::BlockInfo from_json<state::BlockInfo>(const json::json& j)
 {
@@ -219,6 +244,8 @@ state::BlockInfo from_json<state::BlockInfo>(const json::json& j)
         std::move(withdrawals)};
 }
 
+/// Parses a state allocation: accounts keyed by address, each with nonce, balance, code
+/// and storage.
 template <>
 state::State from_json<state::State>(const json::json& j)
 {
@@ -243,6 +270,7 @@ state::State from_json<state::State>(const json::json& j)
     return o;
 }
 
+/// Translates a fork name used in test fixtures to the QRVM revision.
 qrvmc_revision to_rev(std::string_view s)
 {
     if (s == "Zond")
@@ -305,6 +333,8 @@ state::Transaction from_json<state::Transaction>(const json::json& j)
     return o;
 }
 
+/// Parses the "transaction" section of a state test: the common fields plus the lists of
+/// inputs, access lists, gas limits and values that the post-state cases index into.
 static void from_json(const json::json& j, TestMultiTransaction& o)
 {
     from_json_tx_common(j, o);
@@ -325,6 +355,7 @@ static void from_json(const json::json& j, TestMultiTransaction& o)
         o.values.emplace_back(from_json<intx::uint256>(j_value));
 }
 
+/// Parses the data, gas and value indexes of a post-state case.
 static void from_json(const json::json& j, TestMultiTransaction::Indexes& o)
 {
     o.input = j.at("data").get<size_t>();
@@ -332,6 +363,8 @@ static void from_json(const json::json& j, TestMultiTransaction::Indexes& o)
     o.value = j.at("value").get<size_t>();
 }
 
+/// Parses one post-state expectation: indexes, state root, logs hash and whether an
+/// exception is expected.
 static void from_json(const json::json& j, StateTransitionTest::Case::Expectation& o)
 {
     o.indexes = j.at("indexes").get<TestMultiTransaction::Indexes>();
@@ -340,6 +373,8 @@ static void from_json(const json::json& j, StateTransitionTest::Case::Expectatio
     o.exception = j.contains("expectException");
 }
 
+/// Parses a whole state test: pre-state, transaction, environment, input labels and the
+/// post-state cases per revision.
 static void from_json(const json::json& j, StateTransitionTest& o)
 {
     if (!j.is_object() || j.empty())
@@ -367,6 +402,7 @@ static void from_json(const json::json& j, StateTransitionTest& o)
     }
 }
 
+/// Loads a state test from a JSON stream.
 StateTransitionTest load_state_test(std::istream& input)
 {
     return json::json::parse(input).get<StateTransitionTest>();

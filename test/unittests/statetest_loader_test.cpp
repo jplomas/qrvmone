@@ -217,3 +217,28 @@ TEST(statetest_loader, alloc_storage_key_too_long)
     EXPECT_EQ(storage.at(0xfe_bytes64).current, 0x01_bytes64);
     EXPECT_EQ(storage.at(0x01_bytes64).current, 0x02_bytes64);
 }
+
+TEST(statetest_loader, alloc_storage_key_prefix_and_hex)
+{
+    // go-qrl's storageJSON trims one lowercase 0x prefix and then hex-decodes an even number
+    // of characters; anything else, a second prefix included, is an invalid key rather than
+    // a padded one.
+    const auto make = [](std::string_view key) {
+        return std::string(R"({
+            "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ac01": {
+                "nonce": "0x0", "balance": "0x0", "code": "0x", "storage": {")") +
+               std::string(key) + R"(": "0x01"}
+            }
+        })";
+    };
+    for (const auto& bad : {"0X" + std::string(62, '0'), std::string{"0x123"}, std::string{"0xzz"},
+             std::string{"0x0xfe"}})
+    {
+        EXPECT_THAT([&] { test::from_json<state::State>(json::json::parse(make(bad))); },
+            ThrowsMessage<std::invalid_argument>(HasSubstr("invalid hex storage key")));
+    }
+
+    using namespace qrvmc::literals;
+    const auto st = test::from_json<state::State>(json::json::parse(make("0xFE")));
+    EXPECT_EQ(st.get_accounts().begin()->second.storage.at(0xfe_bytes64).current, 0x01_bytes64);
+}
