@@ -76,10 +76,13 @@ and this project adheres to [Semantic Versioning].
 - Storage keys in JSON are 32 bytes, as in go-qrl. The state test loader
   takes an allocation storage key as go-qrl's `storageJSON` does (optional
   `0x`, at most 64 hex characters, left-padded) and an access-list storage
-  key as go-qrl's `common.Hash` does (`0x` and exactly 64 hex characters),
-  so no allocation can hold a slot that `SLOAD`, which addresses storage by
-  the low 256 bits, cannot read, and the state trie never sees two keys on
-  one path. `export_state()` writes storage keys as 32-byte hex.
+  key as go-qrl's `common.Hash` does (`0x` or `0X` and exactly 64 hex
+  characters), so no allocation can hold a slot that `SLOAD`, which
+  addresses storage by the low 256 bits, cannot read, and the state trie
+  never sees two keys on one path. As in go-qrl, an allocation key takes
+  only a lowercase `0x` prefix and an even number of hex digits; malformed
+  keys of either kind are rejected with a message instead of failing inside
+  the decoder. `export_state()` writes storage keys as 32-byte hex.
 
 ## [0.12.1] — 2026-10-25
 

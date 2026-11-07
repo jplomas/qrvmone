@@ -646,7 +646,9 @@ TEST(statetest_loader, access_list_storage_key_must_be_32_byte_hex)
                std::string(key) + R"("]}]
         })";
     };
-    for (const auto& bad : {std::string{"fe"}, std::string{"0xfe"}, std::string(64, '0')})
+    // Short, unprefixed at 64 and at 66 characters, and prefixed but too long.
+    for (const auto& bad :
+        {std::string{"fe"}, std::string{"0xfe"}, std::string(64, '0'), std::string(66, '0')})
     {
         EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(make(bad))); },
             ThrowsMessage<std::invalid_argument>(HasSubstr("access list storage key must be 0x followed by 64 hex characters")));
@@ -655,9 +657,20 @@ TEST(statetest_loader, access_list_storage_key_must_be_32_byte_hex)
     EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(make(too_long))); },
         ThrowsMessage<std::invalid_argument>(HasSubstr("access list storage key must be 0x followed by 64 hex characters")));
 
+    // Right length and prefix but not hex.
+    const auto not_hex = "0x" + std::string(62, '0') + "zz";
+    EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(make(not_hex))); },
+        ThrowsMessage<std::invalid_argument>(HasSubstr("invalid hex in access list storage key")));
+
     const auto tx = test::from_json<state::Transaction>(json::json::parse(make("0x00000000000000000000000000000000000000000000000000000000000000fe")));
     ASSERT_EQ(tx.access_list.size(), 1);
     EXPECT_EQ(tx.access_list[0].second, (std::vector{0xfe_bytes64}));
+
+    // go-qrl's common.Hash takes an uppercase 0X prefix too; it is normalised before decoding.
+    const auto upper = "0X" + std::string(62, '0') + "FE";
+    const auto tx2 = test::from_json<state::Transaction>(json::json::parse(make(upper)));
+    ASSERT_EQ(tx2.access_list.size(), 1);
+    EXPECT_EQ(tx2.access_list[0].second, (std::vector{0xfe_bytes64}));
 }
 
 TEST(statetest_loader, load_uint8_t)
