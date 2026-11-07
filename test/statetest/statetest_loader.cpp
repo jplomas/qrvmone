@@ -5,6 +5,8 @@
 #include "../utils/stdx/utility.hpp"
 #include "statetest.hpp"
 #include <nlohmann/json.hpp>
+#include <algorithm>
+#include <string>
 
 namespace qrvmone::test
 {
@@ -67,10 +69,22 @@ bytes from_json<bytes>(const json::json& j)
     return from_hex(j.get<std::string>()).value();
 }
 
+/// Parses an address written as "Q" followed by exactly 128 hex characters.
 template <>
 address from_json<address>(const json::json& j)
 {
-    return qrvmc::from_prefixed_hex<address>(j.get<std::string>(), "Q").value();
+    // go-qrl parses addresses with hexutil.UnmarshalFixedTextQ (common.Address.UnmarshalText):
+    // "Q" followed by exactly 128 hex characters. Require the same here, so a fixture that
+    // loads in one implementation loads in the other, instead of left-padding short forms.
+    const auto s = j.get<std::string>();
+    constexpr auto hex_length = 2 * sizeof(address{}.bytes);
+    if (s.size() != 1 + hex_length || s[0] != 'Q')
+        throw std::invalid_argument(
+            "address must be Q followed by " + std::to_string(hex_length) + " hex characters: " + s);
+    const auto addr = qrvmc::from_prefixed_hex<address>(s, "Q");
+    if (!addr.has_value())
+        throw std::invalid_argument("invalid address: " + s);
+    return *addr;
 }
 
 template <>
@@ -82,6 +96,32 @@ hash256 from_json<hash256>(const json::json& j)
         return 0x00_bytes64;
     else
         return qrvmc::from_hex<hash256>(j.get<std::string>()).value();
+}
+
+/// Parses an allocation storage key as go-qrl's storageJSON (core/genesis.go) does: an
+/// optional 0x prefix and at most 64 hex characters, left-padded into 32 bytes. The key is
+/// returned in the low half of a 64-byte word, the identity SLOAD, SSTORE and the state
+/// trie use, so no allocation can hold a slot the VM cannot address.
+static bytes64 storage_key_from_json(const json::json& j)
+{
+    const auto s = j.get<std::string>();
+    auto hex = std::string_view{s};
+    if (hex.starts_with("0x") || hex.starts_with("0X"))
+        hex.remove_prefix(2);
+    if (hex.size() > 64)
+        throw std::invalid_argument("too many hex characters in storage key: " + s);
+    return from_json<hash256>(j);
+}
+
+/// Parses an access-list storage key as go-qrl's common.Hash does: 0x followed by exactly
+/// 64 hex characters.
+static bytes64 access_list_storage_key_from_json(const json::json& j)
+{
+    const auto s = j.get<std::string>();
+    if (s.size() != 66 || !(s.starts_with("0x") || s.starts_with("0X")))
+        throw std::invalid_argument(
+            "access list storage key must be 0x followed by 64 hex characters: " + s);
+    return from_json<hash256>(j);
 }
 
 template <>
@@ -101,7 +141,7 @@ state::AccessList from_json<state::AccessList>(const json::json& j)
     {
         std::vector<bytes64> storage_access_list;
         for (const auto& storage_key : a.at("storageKeys"))
-            storage_access_list.emplace_back(from_json<bytes64>(storage_key));
+            storage_access_list.emplace_back(access_list_storage_key_from_json(storage_key));
         o.emplace_back(from_json<address>(a.at("address")), std::move(storage_access_list));
     }
     return o;
@@ -196,7 +236,7 @@ state::State from_json<state::State>(const json::json& j)
             {
                 const auto value = from_json<bytes64>(j_value);
                 acc.storage.insert(
-                    {from_json<bytes64>(j_key), {.current = value, .original = value}});
+                    {storage_key_from_json(j_key), {.current = value, .original = value}});
             }
         }
     }
@@ -223,6 +263,8 @@ static void from_json_tx_common(const json::json& j, state::Transaction& o)
     o.max_priority_gas_price = from_json<intx::uint256>(j.at("maxPriorityFeePerGas"));
 }
 
+/// Parses a single transaction in the t8n input form, including go-qrl's descriptor
+/// and extraParams fields when present.
 template <>
 state::Transaction from_json<state::Transaction>(const json::json& j)
 {
@@ -246,6 +288,17 @@ state::Transaction from_json<state::Transaction>(const json::json& j)
     }
 
     o.nonce = from_json<uint64_t>(j.at("nonce"));
+    if (const auto it = j.find("descriptor"); it != j.end())
+    {
+        // go-qrl's DynamicFeeTx.Descriptor is a fixed 3-byte array; its JSON form may be
+        // empty ("0x"), which leaves the array zero.
+        const auto descriptor = from_json<bytes>(*it);
+        if (!descriptor.empty() && descriptor.size() != o.descriptor.size())
+            throw std::invalid_argument("descriptor must be empty or 3 bytes");
+        std::copy(descriptor.begin(), descriptor.end(), o.descriptor.begin());
+    }
+    if (const auto it = j.find("extraParams"); it != j.end())
+        o.extra_params = from_json<bytes>(*it);
     o.public_key = from_json<bytes>(j.at("publicKey"));
     o.signature = from_json<bytes>(j.at("signature"));
 

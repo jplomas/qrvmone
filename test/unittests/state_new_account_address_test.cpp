@@ -16,10 +16,9 @@ inline const bytes init_codes[] = {bytes{}, bytes{0xFE}};
 inline constexpr bytes64 salts[] = {
     0x00_bytes64, 0xe75fb554e433e03763a1560646ee22dcb74e5274b34c5ad644e7c0f619a7e1d0_bytes64};
 
-// Expected addresses regenerated post-migration (64-byte address +
-// 64-byte VM word). compute_new_account_address now Keccak-512s the
-// sender and stores the full 64-byte hash, so addresses no longer
-// collapse to a right-aligned slice.
+// Expected addresses match go-qrl crypto.CreateAddress (cyyber/go-qrl d4f0d2e):
+// Keccak-512 over the "QRL-ADDR-v1" domain and rlp([sender, nonce]), keeping the
+// full 64-byte digest as the address.
 TEST(state_new_account_address, create)
 {
     for (const auto& ic : init_codes)  // Init-code doesn't affect CREATE.
@@ -53,20 +52,36 @@ TEST(state_new_account_address, create)
     }
 }
 
+// Vectors from go-qrl crypto/crypto_test.go TestNewContractAddress.
+TEST(state_new_account_address, create_go_qrl_vectors)
+{
+    constexpr auto sender =
+        "Q43261cfab65ca3444b9a1001528c60d9a23d19bad2bc21051f24bf4bccd804dc63e35f36b63ee11ca7775ec832d6580929136989106db0231c6f04840cf8ee16"_address;
+    EXPECT_EQ(addr(sender, 0, {}, {}),
+        "Qf2a607fd56723c510a1bf4b000fd1e778aedc94e78fcc8cb18d531ec673212284520097bbed26e2df76ce4a5360c73add776771dcd5c0ce56751e30c2413c366"_address);
+    EXPECT_EQ(addr(sender, 1, {}, {}),
+        "Q5c2ef024f69257cab379fd37fe2dc6c9242320f8771b1a6d6c86b6cefadcfc449c473414b5647b4ee3361f28a7a4cd47b10b6c6fa3399d056f851d97998f7748"_address);
+    EXPECT_EQ(addr(sender, 2, {}, {}),
+        "Qb000412862016ae61f4003114cc4eaa6ba614ccbf8b096e5686a7df6305cb82743e72610275437d11f05758befb7ba44b17fb05f588615893d661e787cd0738e"_address);
+}
+
+// Expected addresses computed with go-qrl crypto.CreateAddress2 (cyyber/go-qrl
+// d4f0d2e): Keccak-512 over the "QRL-ADDR-v1" domain and
+// 0xff || sender || salt (64 bytes) || keccak256(init_code) (32 bytes).
 TEST(state_new_account_address, create2)
 {
     for (const auto n : nonces)  // Nonce doesn't affect CREATE2.
     {
         EXPECT_EQ(addr(senders[0], n, salts[0], init_codes[0]),
-            "Qc1bf3eccdaaec4ecbc9bfd49319cf9fdf1268baf33130d2758928c948afffb69727fd11be2ac23f43fc25dc530a779b9b964c9b271d44dcbea79c61fe9b3d792"_address);
+            "Q129e945d73c2abba8dc13b37c613c63c128e80ea7940b8a0479390faf8772f0c7cdd53065842db816b5e7609f45a56ff4d2971e75ed1e835619d09452a66832c"_address);
 
         EXPECT_EQ(addr(senders[2], n, salts[0], init_codes[1]),
-            "Q09c866242fc6e6a6c411a83ee298db919806b85f4168816b0a2caa62a4fcafffca0f6fe6bb85b62ce687163e8526af1d1cfe66d7ef48d19726f8b0ec7b70a947"_address);
+            "Q0c860652fdaabeb42084b8bd9def6f4dbb5c7740e3657f187005c8175e883f85958bd27091188181a5d074254dda957e41101ab05cc977d8d9622d3eb70df0d8"_address);
 
         EXPECT_EQ(addr(senders[1], n, salts[1], init_codes[0]),
-            "Qfdfb835e3962ddd4338259e342563d60ec0e29c4d6de7ea3388982e962e2bbd97b5de45809ef7b4acb8e40fdb93b771bc762f47bc4ba0681a9f9e62af6c5d74d"_address);
+            "Qc33706436b546cbafad3470aa2d924ea6a319744854a4c493e43964a6002bc953724d5d8671d662f6f1efca46b40552d55fe1237318be9943e19da96952b754c"_address);
 
         EXPECT_EQ(addr(senders[2], n, salts[1], init_codes[1]),
-            "Qd6b81aa9d980c4aa75a0c2577371475cf460c60df0bb10ce029e18fd218f63b34bad3f8d1ad370ca833abec0c1f8cd419bcfe75d5909607f498b639ba88e51cb"_address);
+            "Q7ee038a391652739674a824528794b848eeef5544f6035d10003e0b61d1cfd5596a73591d238fa9e806df1de24069517d8e4ecf5a2e9f1b4b44798c6eaa7adc2"_address);
     }
 }

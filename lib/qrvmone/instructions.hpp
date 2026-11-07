@@ -65,6 +65,19 @@ inline qrvmc::bytes64 store_uint(const uint512& x) noexcept
     return result;
 }
 
+/// Store the storage key addressed by a 64-byte stack operand.
+/// Storage keys are 32 bytes: SLOAD and SSTORE key storage by the low 256 bits
+/// of the operand, matching go-qrl. The key is still passed to the host as
+/// qrvmc_bytes64, with the upper 32 bytes zeroed, so operands that differ only
+/// above bit 255 address the same slot.
+inline qrvmc::bytes64 store_storage_key(const uint512& x) noexcept
+{
+    auto key = store_uint(x);
+    for (size_t i = 0; i < 32; ++i)
+        key.bytes[i] = 0;
+    return key;
+}
+
 using code_iterator = const uint8_t*;
 
 /// Represents the pointer to the stack top item

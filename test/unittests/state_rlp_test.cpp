@@ -210,6 +210,11 @@ TEST(state_rlp, encode_uint64_custom)
     EXPECT_EQ(rlp_encode_uint64(uint64_t{0xffffffffffffffff}), "88ffffffffffffffff"_hex);
 }
 
+// The transaction hashes below are keccak256 of go-qrl's wire encoding of the same
+// fields (cyyber/go-qrl d4f0d2e, core/types/tx_dynamic_fee.go: the type byte followed
+// by the RLP of DynamicFeeTx in struct order, with 32-byte access-list storage keys).
+// These vectors carry Dilithium5-sized 4595-byte signatures, which go-qrl's wire
+// encoder passes through unchanged although its verifier would reject them.
 TEST(state_rlp, tx_to_rlp_eip1559)
 {
     state::Transaction tx{};
@@ -237,7 +242,7 @@ TEST(state_rlp, tx_to_rlp_eip1559)
     // hand-rolled here. The keccak comparison below catches any change.
 
     EXPECT_EQ(keccak256(rlp_rep),
-        0x9ef2ba22b1f244545fce3f44564bf760376afb99b283e0175e1739202e06a404_bytes64);
+        0xed5c2c47ddd9b3c7bb50eae60602a5929edef686df2d6cb6eb89bce7de28bbdc_bytes64);
 }
 
 TEST(state_rlp, tx_to_rlp_eip1559_with_data)
@@ -269,7 +274,7 @@ TEST(state_rlp, tx_to_rlp_eip1559_with_data)
     // The keccak comparison below catches any change.
 
     EXPECT_EQ(keccak256(rlp_rep),
-        0x2af5a7212057454426a8e8cbd243924e18ec0122ca00fa167a272245047c5990_bytes64);
+        0x34a9037dbcf09768008d6dfa536d69f3b45460b436b64f0476ddb4511cf12b84_bytes64);
 }
 
 TEST(state_rlp, tx_to_rlp_eip1559_with_non_empty_access_list)
@@ -294,5 +299,73 @@ TEST(state_rlp, tx_to_rlp_eip1559_with_non_empty_access_list)
     tx.chain_id = 1;
 
     EXPECT_EQ(keccak256(rlp::encode(tx)),
-        0x343d1e1a494cc29e763d29955aa2298d04d4bf4911bce11e4d70c5bd81dd55eb_bytes64);
+        0xd45a11348178bb348bb34ae98f8e47d5b8ebacb96f58e04d36f12f40665b79bb_bytes64);
+}
+
+/// Pins the go-qrl field order and widths on a small transaction: 64-byte address,
+/// 32-byte access-list storage keys, the 3-byte descriptor, extraParams, then signature
+/// and public key last. Expected bytes are go-qrl's wire encoding (cyyber/go-qrl d4f0d2e).
+TEST(state_rlp, tx_to_rlp_go_qrl_field_order)
+{
+    state::Transaction tx{};
+    tx.kind = qrvmone::state::Transaction::Kind::eip1559;
+    tx.chain_id = 1;
+    tx.nonce = 7;
+    tx.max_priority_gas_price = 2;
+    tx.max_gas_price = 10;
+    tx.gas_limit = 50000;
+    tx.to = "Q02"_address;
+    tx.value = 3;
+    tx.data = "deadbeef"_hex;
+    tx.access_list = {
+        {"Q01"_address,
+            {0x01_bytes64,
+                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff_bytes64}},
+        {"Q03"_address, {}},
+    };
+    tx.descriptor = {0x01, 0x02, 0x03};
+    tx.extra_params = "0405"_hex;
+    tx.signature = "aabbccdd"_hex;
+    tx.public_key = "eeff"_hex;
+
+    const auto rlp_rep = rlp::encode(tx);
+    EXPECT_EQ(rlp_rep,
+        "02f9012d0107020a82c350b8400000000000000000000000000000000000000000000000000000000000000000000000"
+        "00000000000000000000000000000000000000000000000000000000020384deadbeeff8cdf886b84000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "000000000000000001f842a00000000000000000000000000000000000000000000000000000000000000001a0ffffff"
+        "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff843b840000000000000000000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "03c08301020382040584aabbccdd82eeff"
+        ""_hex);
+    EXPECT_EQ(keccak256(rlp_rep), 0x8dbb9486e4b155bd81199cb1a8efe1bcea65cc88e46b485b87031db10f167df3_bytes64);
+}
+
+/// Same transaction with ML-DSA-87 sized signature (4627 bytes) and public key
+/// (2592 bytes), the only widths go-qrl's verifier accepts; for these go-qrl's
+/// NewTx path and its wire encoder produce identical bytes.
+TEST(state_rlp, tx_to_rlp_go_qrl_mldsa87_sizes)
+{
+    state::Transaction tx{};
+    tx.kind = qrvmone::state::Transaction::Kind::eip1559;
+    tx.chain_id = 1;
+    tx.nonce = 8;
+    tx.max_priority_gas_price = 2;
+    tx.max_gas_price = 10;
+    tx.gas_limit = 50000;
+    tx.to = "Q02"_address;
+    tx.value = 3;
+    tx.data = "deadbeef"_hex;
+    tx.access_list = {
+        {"Q01"_address,
+            {0x01_bytes64,
+                0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff_bytes64}},
+        {"Q03"_address, {}},
+    };
+    tx.descriptor = {0x01, 0x02, 0x03};
+    tx.extra_params = "0405"_hex;
+    tx.signature = bytes(4627, uint8_t{0xab});
+    tx.public_key = bytes(2592, uint8_t{0xcd});
+
+    EXPECT_EQ(keccak256(rlp::encode(tx)), 0x07ed41ec179253a44c264e3040ac663fb510f0f7c3e89aa2e05ad208bd034b64_bytes64);
 }

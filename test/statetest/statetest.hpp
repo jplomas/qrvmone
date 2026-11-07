@@ -105,4 +105,17 @@ inline std::string hex0x(const bytes_view& v)
     return "0x" + qrvmc::hex(v);
 }
 
+/// Encodes an address as go-qrl writes it in JSON: "Q" followed by 128 hex characters,
+/// the form from_json<address>() requires. go-qrl writes QIP-55 mixed-case hex; both
+/// go-qrl's and this loader accept either case.
+inline std::string hexq(const address& addr)
+{
+    return "Q" + qrvmc::hex({addr.bytes, sizeof(addr.bytes)});
+}
+
+/// Exports the state in the JSON allocation form that from_json<state::State>() reads
+/// (the t8n --input.alloc / --output.alloc format), so an exported allocation can be fed
+/// back in. Storage slots holding zero are left out.
+[[nodiscard]] json::json export_state(const state::State& state);
+
 }  // namespace qrvmone::test

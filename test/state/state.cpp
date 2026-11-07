@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "state.hpp"
+#include <algorithm>
 #include "errors.hpp"
 #include "host.hpp"
 #include "rlp.hpp"
@@ -154,7 +155,13 @@ std::variant<TransactionReceipt, std::error_code> transition(
         host.access_account(a);  // TODO: Return account ref.
         auto& storage = state.get(a).storage;
         for (const auto& key : storage_keys)
-            storage[key].access_status = QRVMC_ACCESS_WARM;
+        {
+            // Storage is keyed by the low 256 bits of the key (see store_storage_key()),
+            // so warm the slot the VM will address rather than the raw 64-byte key.
+            auto slot = key;
+            std::fill_n(slot.bytes, 32, uint8_t{0});
+            storage[slot].access_status = QRVMC_ACCESS_WARM;
+        }
     }
     // EIP-3651: Warm COINBASE.
     // This may create an empty coinbase account. The account cannot be created unconditionally
@@ -186,23 +193,55 @@ std::variant<TransactionReceipt, std::error_code> transition(
     return receipt;
 }
 
+/// RLP of a log entry: [address, topics, data].
 [[nodiscard]] bytes rlp_encode(const Log& log)
 {
     return rlp::encode_tuple(log.addr, log.topics, log.data);
 }
 
+namespace
+{
+/// RLP of the access list with 32-byte storage keys, as go-qrl's
+/// AccessTuple{Address, StorageKeys []common.Hash} encodes it. qrvmone keeps the
+/// keys in 64-byte containers whose low 32 bytes hold the key.
+bytes rlp_encode_access_list(const AccessList& access_list)
+{
+    bytes content;
+    for (const auto& [addr, keys] : access_list)
+    {
+        bytes keys_content;
+        for (const auto& key : keys)
+            keys_content += rlp::encode(bytes_view{key.bytes + 32, 32});
+        content += rlp::internal::wrap_list(
+            rlp::encode(bytes_view{addr.bytes, sizeof(addr.bytes)}) +
+            rlp::internal::wrap_list(keys_content));
+    }
+    return rlp::internal::wrap_list(content);
+}
+}  // namespace
+
+/// Typed RLP of a transaction, byte for byte as go-qrl's DynamicFeeTx wire encoding.
 [[nodiscard]] bytes rlp_encode(const Transaction& tx)
 {
+    // Matches go-qrl core/types/tx_dynamic_fee.go DynamicFeeTx, encoded in struct order:
     // tx_type +
     // rlp [chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, to, value,
-    // data, access_list, public_key, signature];
+    // data, access_list, descriptor, extra_params, signature, public_key];
+    const auto access_list = rlp_encode_access_list(tx.access_list);
     return bytes{0x02} +  // Transaction type (eip1559 type == 2)
-           rlp::encode_tuple(tx.chain_id, tx.nonce, tx.max_priority_gas_price, tx.max_gas_price,
-               static_cast<uint64_t>(tx.gas_limit),
-               tx.to.has_value() ? tx.to.value() : bytes_view(), tx.value, tx.data, tx.access_list,
-               tx.public_key, tx.signature);
+           rlp::internal::wrap_list(
+               rlp::encode(tx.chain_id) + rlp::encode(tx.nonce) +
+               rlp::encode(tx.max_priority_gas_price) + rlp::encode(tx.max_gas_price) +
+               rlp::encode(static_cast<uint64_t>(tx.gas_limit)) +
+               rlp::encode(tx.to.has_value() ? bytes_view{tx.to->bytes, sizeof(tx.to->bytes)} :
+                                               bytes_view{}) +
+               rlp::encode(tx.value) + rlp::encode(tx.data) + access_list +
+               rlp::encode(bytes_view{tx.descriptor.data(), tx.descriptor.size()}) +
+               rlp::encode(tx.extra_params) + rlp::encode(tx.signature) +
+               rlp::encode(tx.public_key));
 }
 
+/// Typed RLP of a receipt: [status, cumulative gas used, logs bloom, logs].
 [[nodiscard]] bytes rlp_encode(const TransactionReceipt& receipt)
 {
     const auto prefix = receipt.kind == Transaction::Kind::eip1559 ? bytes{0x02} : bytes{};

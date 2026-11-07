@@ -5,6 +5,82 @@ Documentation of all notable changes to the **qrvmone** project.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
+## [Unreleased]
+
+### Added
+
+- `qrvmone-conformance`, a runner for the go-qrl VM conformance corpus
+  (`core/vm/conformance` in go-qrl). It reads vectors as tab separated lines on
+  stdin and prints return data, error class and gas used, so go-qrl's
+  `TestGoVMMatchesQrvmone` (driven by `hack/vm-conformance.sh` there) can
+  compare both runtimes vector by vector. Built with `QRVMONE_TESTING=ON`.
+  From [cyyber/qrvmone#9](https://github.com/cyyber/qrvmone/pull/9).
+
+### Changed
+
+- `README.md` rewritten for qrvmone and go-qrl. It drops the gzond plugin
+  instructions (go-qrl runs its own VM and has no QRVMC loader), the Docker Hub
+  image that was never published, the `qrvm-test` tool that does not exist
+  (the QRVMC compliance tool is `qrvmc-vmtester`), the CI and coverage badges
+  of the upstream project and the broken link references. It describes the
+  QRVM's differences from the EVM, the tools built with `QRVMONE_TESTING=ON`,
+  how hyperion and go-qrl consume qrvmone, and the go-qrl conformance check.
+
+### Fixed
+
+- `SLOAD` and `SSTORE` key contract storage by the low 256 bits of the
+  64-byte stack operand, matching go-qrl, which keys state storage by 32-byte
+  hashes. The upper 32 bytes of the key are zeroed before it reaches the
+  host's `get_storage`, `set_storage` and `access_storage`, so operands that
+  differ only above bit 255 address the same slot and share its warm or cold
+  status. The QRVMC host ABI (`qrvmc_bytes64` key) is unchanged. Resolves the
+  qrvmone side of [theQRL/go-qrl#119](https://github.com/theQRL/go-qrl/issues/119);
+  the new unit tests use the same bytecode as the go-qrl conformance vectors
+  from [cyyber/go-qrl#214](https://github.com/cyyber/go-qrl/pull/214).
+  The state test host warms transaction access-list storage keys under the
+  same folded key.
+- `CREATE2` address derivation in the state test host embeds the 32-byte
+  keccak256 digest of the init code, as go-qrl's `crypto.CreateAddress2`
+  does, instead of the 64-byte container holding it (Ciphsure QRVM-1).
+  Expected addresses in `state_new_account_address_test.cpp` were recomputed
+  with go-qrl, and go-qrl's own `TestNewContractAddress` vectors were added.
+- The state and storage tries are keyed by the 32-byte keccak256 digest, as
+  go-qrl's secure trie is, and the storage trie hashes the 32-byte storage
+  key rather than its 64-byte container (Ciphsure QRVM-12). State roots now
+  match go-qrl: the expected roots in `state_mpt_hash_test.cpp` were
+  recomputed with go-qrl's trie package, and the post-state root of the
+  statetest integration fixture is the one go-qrl's `qrvm statetest`
+  reports for it.
+- The state test transaction RLP matches go-qrl's `DynamicFeeTx` wire
+  encoding: access-list storage keys are encoded as 32-byte strings, the
+  transaction carries go-qrl's 3-byte `descriptor` and `extraParams` fields
+  (read from JSON under those names, descriptor empty or 3 bytes), and the
+  tail is `descriptor, extraParams, signature, publicKey`. Transaction hashes
+  and `qrvmone-t8n`'s `txRoot` now agree with go-qrl; expected values in
+  `state_rlp_test.cpp` and `state_mpt_hash_test.cpp` were recomputed with
+  go-qrl's encoder, and vectors with ML-DSA-87 sized signature and public key
+  were added.
+- The state test loader requires addresses in JSON to be `Q` followed by
+  exactly 128 hex characters, as go-qrl's `common.Address` parsing does,
+  instead of left-padding shorter forms or reading an empty string as the
+  zero address. An empty `to` still denotes contract creation. The
+  statetest integration fixture
+  and the benchmark fixtures under `test/qrvm-benchmarks` were rewritten with
+  full-length addresses, so go-qrl's `qrvm statetest` loads the integration
+  fixture unchanged and passes it.
+- `qrvmone-t8n` writes allocation addresses, and a receipt's
+  `contractAddress`, as `Q` followed by 128 hex characters instead of `0x`
+  hex, so its `--output.alloc` can be fed back as `--input.alloc`. The
+  export lives in `export_state()` in the state test utilities and has a
+  round-trip test.
+- Storage keys in JSON are 32 bytes, as in go-qrl. The state test loader
+  takes an allocation storage key as go-qrl's `storageJSON` does (optional
+  `0x`, at most 64 hex characters, left-padded) and an access-list storage
+  key as go-qrl's `common.Hash` does (`0x` and exactly 64 hex characters),
+  so no allocation can hold a slot that `SLOAD`, which addresses storage by
+  the low 256 bits, cannot read, and the state trie never sees two keys on
+  one path. `export_state()` writes storage keys as 32-byte hex.
+
 ## [0.12.1] — 2026-10-25
 
 ### Fixed
@@ -72,6 +148,7 @@ Release aligned to the QRVMC v2.0.0 ABI, which widens the VM word to
   not installed by the bundled qrvmc package. Ship tests stay off in
   release builds until that dependency is resolved.
 
+[Unreleased]: https://github.com/theQRL/qrvmone/compare/v0.12.1...HEAD
 [0.12.1]: https://github.com/theQRL/qrvmone/releases/tag/v0.12.1
 [0.12.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.12.0
 [0.11.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.11.0

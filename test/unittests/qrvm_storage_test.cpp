@@ -212,3 +212,74 @@ TEST_P(qrvm, sstore_below_stipend)
     execute(2307, code);
     EXPECT_EQ(result.status_code, QRVMC_SUCCESS);
 }
+
+// Storage keys are 32 bytes: SLOAD and SSTORE key storage by the low 256 bits
+// of the 64-byte operand, matching go-qrl (core/vm/conformance/vectors.go).
+// Operands that differ only above bit 255 address the same slot, and the
+// aliased access is warm. The bytecode below is identical to the go-qrl
+// conformance vectors so both runtimes assert the same result and gas.
+
+TEST_P(qrvm, storage_key_below_2_256_round_trip)
+{
+    rev = QRVMC_ZOND;
+    execute(100000, bytecode{"602a60055560055460005260406000f3"});
+    EXPECT_GAS_USED(QRVMC_SUCCESS, 22224);
+    ASSERT_EQ(result.output_size, 64);
+    EXPECT_EQ(result.output_data[63], 0x2a);
+    const auto& storage = host.accounts[msg.recipient].storage;
+    ASSERT_EQ(storage.size(), 1);
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_EQ(storage.begin()->first.bytes[i], 0);
+}
+
+TEST_P(qrvm, storage_key_above_2_256_round_trip)
+{
+    rev = QRVMC_ZOND;
+    execute(100000, bytecode{"602a8001000000000000000000000000000000000000000000000000000000000000000555800100000000000000000000000000000000000000000000000000000000000000055460005260406000f3"});
+    EXPECT_GAS_USED(QRVMC_SUCCESS, 22224);
+    ASSERT_EQ(result.output_size, 64);
+    EXPECT_EQ(result.output_data[63], 0x2a);
+    const auto& storage = host.accounts[msg.recipient].storage;
+    ASSERT_EQ(storage.size(), 1);
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_EQ(storage.begin()->first.bytes[i], 0);
+}
+
+TEST_P(qrvm, storage_key_aliases_low_256_bits_on_load)
+{
+    rev = QRVMC_ZOND;
+    execute(100000, bytecode{"602a800100000000000000000000000000000000000000000000000000000000000000055560055460005260406000f3"});
+    EXPECT_GAS_USED(QRVMC_SUCCESS, 22224);
+    ASSERT_EQ(result.output_size, 64);
+    EXPECT_EQ(result.output_data[63], 0x2a);
+    const auto& storage = host.accounts[msg.recipient].storage;
+    ASSERT_EQ(storage.size(), 1);
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_EQ(storage.begin()->first.bytes[i], 0);
+}
+
+TEST_P(qrvm, storage_key_aliases_low_256_bits_on_store)
+{
+    rev = QRVMC_ZOND;
+    execute(100000, bytecode{"602a600555800100000000000000000000000000000000000000000000000000000000000000055460005260406000f3"});
+    EXPECT_GAS_USED(QRVMC_SUCCESS, 22224);
+    ASSERT_EQ(result.output_size, 64);
+    EXPECT_EQ(result.output_data[63], 0x2a);
+    const auto& storage = host.accounts[msg.recipient].storage;
+    ASSERT_EQ(storage.size(), 1);
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_EQ(storage.begin()->first.bytes[i], 0);
+}
+
+TEST_P(qrvm, storage_key_top_bit_aliases_slot_zero)
+{
+    rev = QRVMC_ZOND;
+    execute(100000, bytecode{"602a60016101ff1b5560005460005260406000f3"});
+    EXPECT_GAS_USED(QRVMC_SUCCESS, 22230);
+    ASSERT_EQ(result.output_size, 64);
+    EXPECT_EQ(result.output_data[63], 0x2a);
+    const auto& storage = host.accounts[msg.recipient].storage;
+    ASSERT_EQ(storage.size(), 1);
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_EQ(storage.begin()->first.bytes[i], 0);
+}

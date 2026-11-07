@@ -97,12 +97,11 @@ size_t Host::copy_code(const address& addr, size_t code_offset, uint8_t* buffer_
     return num_bytes;
 }
 
-// ADR-004 (64-byte Zond address derivation): the new account address is
-// Keccak-512("QRL-ADDR-v1" || data). For
-// CREATE, data is rlp(sender, nonce); for CREATE2, data is
-// 0xff || sender || salt || keccak256(init_code). The mock host mirrors
-// the on-chain go-qrl derivation so cross-VM state tests hash to the same
-// addresses under the widened layout.
+/// Derives the address of a new account as go-qrl does (ADR-004, 64-byte addresses):
+/// Keccak-512("QRL-ADDR-v1" || data), keeping the full 64-byte digest. For CREATE, data is
+/// rlp(sender, nonce); for CREATE2, data is 0xff || sender || salt || the 32-byte keccak256
+/// digest of the init code. The host mirrors go-qrl's crypto.CreateAddress and
+/// CreateAddress2 so state tests derive the same addresses.
 address compute_new_account_address(const address& sender, uint64_t sender_nonce,
     const std::optional<bytes64>& salt, bytes_view init_code) noexcept
 {
@@ -117,13 +116,17 @@ address compute_new_account_address(const address& sender, uint64_t sender_nonce
     }
     else  // CREATE2
     {
+        // go-qrl (core/vm/qrvm.go, crypto.CreateAddress2) hashes
+        // 0xff || sender (64 bytes) || salt (64 bytes) || keccak256(init_code) (32 bytes).
+        // keccak256() returns the digest in the low 32 bytes of a 64-byte container,
+        // so embed only that half.
         const auto init_code_hash = keccak256(init_code);
-        data.reserve(1 + sizeof(sender) + sizeof(*salt) + sizeof(init_code_hash));
+        const bytes_view init_code_digest{init_code_hash.bytes + 32, 32};
+        data.reserve(1 + sizeof(sender) + sizeof(*salt) + init_code_digest.size());
         data.push_back(uint8_t{0xff});
         data.insert(data.end(), sender.bytes, sender.bytes + sizeof(sender));
         data.insert(data.end(), salt->bytes, salt->bytes + sizeof(salt->bytes));
-        data.insert(data.end(), init_code_hash.bytes,
-            init_code_hash.bytes + sizeof(init_code_hash));
+        data.insert(data.end(), init_code_digest.begin(), init_code_digest.end());
     }
 
     bytes hashed_input;
