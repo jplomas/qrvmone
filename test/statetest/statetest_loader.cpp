@@ -113,12 +113,15 @@ hash256 from_json<hash256>(const json::json& j)
 static bytes64 storage_key_from_json(const json::json& j)
 {
     const auto s = j.get<std::string>();
+    // storageJSON trims one lowercase 0x prefix and limits what is left to 64 characters.
     auto hex = std::string_view{s};
-    if (hex.starts_with("0x"))  // storageJSON trims only the lowercase prefix.
+    if (hex.starts_with("0x"))
         hex.remove_prefix(2);
     if (hex.size() > 64)
         throw std::invalid_argument("too many hex characters in storage key: " + s);
-    const auto key = qrvmc::from_hex<hash256>(hex);
+    // Decode the original text, not the trimmed one: the QRVMC decoder strips the same single
+    // prefix and rejects a second one, which the trimmed text would have it strip again.
+    const auto key = qrvmc::from_hex<hash256>(s);
     if (!key.has_value())
         throw std::invalid_argument("invalid hex storage key: " + s);
     return *key;

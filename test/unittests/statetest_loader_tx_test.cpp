@@ -657,9 +657,13 @@ TEST(statetest_loader, access_list_storage_key_must_be_32_byte_hex)
     EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(make(too_long))); },
         ThrowsMessage<std::invalid_argument>(HasSubstr("access list storage key must be 0x followed by 64 hex characters")));
 
-    // Right length and prefix but not hex.
+    // Right length and prefix but not hex, including a second prefix after the first.
     const auto not_hex = "0x" + std::string(62, '0') + "zz";
     EXPECT_THAT([&] { test::from_json<state::Transaction>(json::json::parse(make(not_hex))); },
+        ThrowsMessage<std::invalid_argument>(HasSubstr("invalid hex in access list storage key")));
+    const auto double_prefix = "0x0x" + std::string(62, '0');
+    EXPECT_THAT(
+        [&] { test::from_json<state::Transaction>(json::json::parse(make(double_prefix))); },
         ThrowsMessage<std::invalid_argument>(HasSubstr("invalid hex in access list storage key")));
 
     const auto tx = test::from_json<state::Transaction>(json::json::parse(make("0x00000000000000000000000000000000000000000000000000000000000000fe")));

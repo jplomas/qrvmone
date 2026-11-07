@@ -220,8 +220,9 @@ TEST(statetest_loader, alloc_storage_key_too_long)
 
 TEST(statetest_loader, alloc_storage_key_prefix_and_hex)
 {
-    // go-qrl's storageJSON trims only a lowercase 0x prefix and then hex-decodes an even
-    // number of characters; anything else is an invalid key rather than a padded one.
+    // go-qrl's storageJSON trims one lowercase 0x prefix and then hex-decodes an even number
+    // of characters; anything else, a second prefix included, is an invalid key rather than
+    // a padded one.
     const auto make = [](std::string_view key) {
         return std::string(R"({
             "Q0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ac01": {
@@ -230,7 +231,8 @@ TEST(statetest_loader, alloc_storage_key_prefix_and_hex)
             }
         })";
     };
-    for (const auto& bad : {"0X" + std::string(62, '0'), std::string{"0x123"}, std::string{"0xzz"}})
+    for (const auto& bad : {"0X" + std::string(62, '0'), std::string{"0x123"}, std::string{"0xzz"},
+             std::string{"0x0xfe"}})
     {
         EXPECT_THAT([&] { test::from_json<state::State>(json::json::parse(make(bad))); },
             ThrowsMessage<std::invalid_argument>(HasSubstr("invalid hex storage key")));
