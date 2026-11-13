@@ -5,7 +5,7 @@ Documentation of all notable changes to the **qrvmone** project.
 The format is based on [Keep a Changelog],
 and this project adheres to [Semantic Versioning].
 
-## [Unreleased]
+## [0.13.0] — 2026-11-13
 
 ### Added
 
@@ -151,7 +151,8 @@ Release aligned to the QRVMC v2.0.0 ABI, which widens the VM word to
   not installed by the bundled qrvmc package. Ship tests stay off in
   release builds until that dependency is resolved.
 
-[Unreleased]: https://github.com/theQRL/qrvmone/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/theQRL/qrvmone/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.13.0
 [0.12.1]: https://github.com/theQRL/qrvmone/releases/tag/v0.12.1
 [0.12.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.12.0
 [0.11.0]: https://github.com/theQRL/qrvmone/releases/tag/v0.11.0
